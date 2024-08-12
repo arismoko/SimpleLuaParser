@@ -7,14 +7,12 @@ local function print_node(node, indent)
 	indent = indent or 0
 	local indent_str = string.rep("  ", indent)
 
-	-- Collect and sort keys
 	local keys = {}
 	for k in pairs(node) do
 		table.insert(keys, k)
 	end
-	table.sort(keys) -- This sorts the keys alphabetically
+	table.sort(keys) 
 
-	-- Iterate over sorted keys
 	for _, k in ipairs(keys) do
 		local v = node[k]
 		if type(v) == "table" then
@@ -35,24 +33,24 @@ local PRECEDENCE = {
 	[">"] = 3,
 	["<="] = 3,
 	[">="] = 3,
-	["|"] = 4, -- Bitwise OR
-	["~"] = 5, -- Bitwise XOR (binary)
-	["&"] = 6, -- Bitwise AND
+	["|"] = 4, 
+	["~"] = 5, 
+	["&"] = 6, 
 	["+"] = 7,
 	["-"] = 7,
 	["*"] = 8,
 	["/"] = 8,
 	["#"] = 8,
 	["%"] = 8,
-	["<<"] = 9, -- Bitwise left shift
-	[">>"] = 9, -- Bitwise right shift
+	["<<"] = 9, 
+	[">>"] = 9, 
 	[".."] = 10,
 	["^"] = 11,
 	["not"] = 12,
 }
 
 function Parser:new(tokens)
-	--remove all LINE_BREAK tokens
+	
 	for i = #tokens, 1, -1 do
 		if tokens[i].type == Tokenizer.TOKEN_TYPES.LINE_BREAK then
 			table.remove(tokens, i)
@@ -81,7 +79,7 @@ function Parser:getIdentifiersAsList(filename)
 	local identifiers = {}
 
 	local code = fs.open(filename, "r").readAll()
-	if code then -- Check if the file exists
+	if code then 
 		local tokens = Tokenizer.tokenize(code)
 		local parser = Parser:new(tokens)
 		local ast = parser:parse()
@@ -118,8 +116,8 @@ function Parser:require(expected_type, expected_value)
 				.. self.position
 		)
 	end
-	self:advance() -- Move to the next token after checking
-	return token -- Return the token that just passed the check
+	self:advance() 
+	return token 
 end
 
 function Parser:advance()
@@ -128,12 +126,12 @@ function Parser:advance()
 end
 
 function Parser:peek(n)
-	n = n or 1 -- Default to peaking one token ahead if no argument is provided
+	n = n or 1 
 	local peek_position = self.position + n
 	if peek_position <= #self.tokens then
 		return self.tokens[peek_position]
 	else
-		return nil -- Return nil if the peek goes beyond the available tokens
+		return nil 
 	end
 end
 
@@ -156,19 +154,19 @@ end
 
 function Parser:parse_table()
 	local table_elements = {}
-	self:advance() -- Move past the initial '{'
+	self:advance() 
 
-	-- Check if the first token is '...'
+	
 	if self:current_token().type == Tokenizer.TOKEN_TYPES.VARARG then
-		self:advance() -- Move past '...'
+		self:advance() 
 
-		-- Peek ahead to ensure that no other tokens follow '...'
+		
 		if self:current_token().type ~= Tokenizer.TOKEN_TYPES.SEPARATOR or self:current_token().value ~= "}" then
 			error("Varargs (...) must be the only element in the table constructor")
 		end
-		self:advance() -- Move past the closing '}'
+		self:advance() 
 
-		-- Return the node early as the table only contains '...'
+		
 		local node = { type = "table", position = self.position, elements = { { key = nil, value = "..." } } }
 		return node
 	end
@@ -176,38 +174,38 @@ function Parser:parse_table()
 	while self.position <= #self.tokens do
 		local token = self:current_token()
 		if token.type == Tokenizer.TOKEN_TYPES.SEPARATOR and token.value == "}" then
-			self:advance() -- Move past the closing '}'
+			self:advance() 
 			break
 		end
 
 		local key, value
 
-		-- Check for explicit keys defined using brackets or implicit keys
+		
 		if token.type == Tokenizer.TOKEN_TYPES.SEPARATOR and token.value == "[" then
-			self:advance() -- Move past '['
-			key = self:parse_expression() -- Dynamic key
+			self:advance() 
+			key = self:parse_expression() 
 			if self:current_token().type ~= Tokenizer.TOKEN_TYPES.SEPARATOR or self:current_token().value ~= "]" then
 				error("Expected ']' after table key expression at position " .. self.position)
 			end
-			self:advance() -- Move past ']'
+			self:advance() 
 			if self:current_token().type ~= Tokenizer.TOKEN_TYPES.OPERATOR or self:current_token().value ~= "=" then
 				error("Expected '=' after table key at position " .. self.position)
 			end
-			self:advance() -- Move past '='
-			value = self:parse_expression() -- Parse the value as an expression
+			self:advance() 
+			value = self:parse_expression() 
 		elseif
 			token.type == Tokenizer.TOKEN_TYPES.IDENTIFIER
 			or token.type == Tokenizer.TOKEN_TYPES.STRING
 			or token.type == Tokenizer.TOKEN_TYPES.NUMBER
 			or token.type == Tokenizer.TOKEN_TYPES.LITERAL
 		then
-			-- Implicit key or array-style index
-			key = self:parse_primary_expression() -- Parse the key as a primary expression
+			
+			key = self:parse_primary_expression() 
 			if self:current_token().type == Tokenizer.TOKEN_TYPES.OPERATOR and self:current_token().value == "=" then
-				self:advance() -- Move past '='
-				value = self:parse_expression() -- Parse the value as an expression
+				self:advance() 
+				value = self:parse_expression() 
 			else
-				value = key -- If no '=', treat it as an array element
+				value = key 
 				key = nil
 			end
 		elseif token.type == Tokenizer.TOKEN_TYPES.VARARG then
@@ -216,12 +214,12 @@ function Parser:parse_table()
 			error("Invalid token in table constructor: " .. token.value)
 		end
 
-		-- Store the key-value pair
+		
 		table.insert(table_elements, { key = key, value = value })
 
-		-- Handle comma or end of table
+		
 		if self:current_token().type == Tokenizer.TOKEN_TYPES.SEPARATOR and self:current_token().value == "," then
-			self:advance() -- Continue to the next element
+			self:advance() 
 		elseif self:current_token().type ~= Tokenizer.TOKEN_TYPES.SEPARATOR or self:current_token().value ~= "}" then
 			error("Expected ',' or '}' after table element at position " .. self.position)
 		end
@@ -232,12 +230,12 @@ function Parser:parse_table()
 end
 
 function Parser:parse_function_call(fn)
-	self:advance() -- Skip the '(' starting the argument list
+	self:advance() 
 
 	local args = self:parse_expression_list()
 
-	-- Use direct string values for type and token value
-	self:require("separator", ")") -- Ensure the next token is ')' and advance
+	
+	self:require("separator", ")") 
 
 	local node = {
 		type = "function_call",
@@ -258,14 +256,14 @@ function Parser:parse_literal()
 		or token.type == Tokenizer.TOKEN_TYPES.STRING
 		or token.type == Tokenizer.TOKEN_TYPES.LITERAL
 	then
-		-- Handle literals: numbers, strings, boolean, and nil
+		
 		node = { type = "literal", value = token.value, position = token.position }
 		self:advance()
 	elseif token.type == Tokenizer.TOKEN_TYPES.IDENTIFIER then
-		-- Handle identifiers and check if it leads to a function call
+		
 		node = self:parse_identifier()
 	elseif token.type == Tokenizer.TOKEN_TYPES.SEPARATOR and token.value == "{" then
-		-- Handle table constructors
+		
 		node = self:parse_table()
 	else
 		error("Unexpected token in literal: " .. token.value .. " at position " .. self.position)
@@ -296,10 +294,10 @@ function Parser:parse_primary_expression()
 	local token = self:current_token()
 	local node
 
-	-- Handle unary operators (`not`, unary `-`, `#`)
+	
 	if self:is_unary_operator(token) then
-		self:advance() -- Move past the unary operator
-		local operand = self:parse_primary_expression() -- Recursively parse the operand
+		self:advance() 
+		local operand = self:parse_primary_expression() 
 		node = { type = "unary_expression", operator = token.value, operand = operand, position = self.position }
 	elseif
 		token.type == Tokenizer.TOKEN_TYPES.NUMBER
@@ -310,14 +308,14 @@ function Parser:parse_primary_expression()
 		node = { type = "literal", value = token.value, position = self.position }
 	elseif token.type == Tokenizer.TOKEN_TYPES.IDENTIFIER then
 		local name = token.value
-		self:advance() -- Move past the identifier
+		self:advance() 
 		node = { type = "identifier", value = name, position = self.position }
 	elseif token.type == Tokenizer.TOKEN_TYPES.SEPARATOR and token.value == "(" then
-		self:advance() -- Move past '('
+		self:advance() 
 		node = self:parse_expression()
-		self:require("separator", ")") -- Ensure closing ')'
+		self:require("separator", ")") 
 	elseif token.type == Tokenizer.TOKEN_TYPES.SEPARATOR and token.value == "{" then
-		-- Handle table constructors
+		
 		node = self:parse_table()
 	elseif token.type == Tokenizer.TOKEN_TYPES.KEYWORD and token.value == "function" then
 		self:advance()
@@ -331,7 +329,7 @@ function Parser:parse_primary_expression()
 		node = self:parse_literal()
 	end
 
-	-- Handle possible subsequent member access, indexing, method calls, or function calls
+	
 	while true do
 		token = self:current_token()
 		if token == nil then
@@ -340,7 +338,7 @@ function Parser:parse_primary_expression()
 
 		if token.type == Tokenizer.TOKEN_TYPES.SEPARATOR then
 			if token.value == "." then
-				self:advance() -- Move past '.'
+				self:advance() 
 				local property = self:require("identifier").value
 				node = {
 					type = "access",
@@ -350,16 +348,16 @@ function Parser:parse_primary_expression()
 					position = self.position,
 				}
 			elseif token.value == "[" then
-				self:advance() -- Move past '['
+				self:advance() 
 				local index = self:parse_expression()
-				self:require("separator", "]") -- Ensure closing ']'
+				self:require("separator", "]") 
 				node = { type = "access", access_type = "index", table = node, index = index, position = self.position }
 			elseif token.value == ":" then
-				self:advance() -- Move past ':'
+				self:advance() 
 				local method = self:require("identifier").value
-				self:require("separator", "(") -- Ensure method call has '('
+				self:require("separator", "(") 
 				local args = self:parse_expression_list()
-				self:require("separator", ")") -- Ensure closing ')'
+				self:require("separator", ")") 
 				node = { type = "method_call", method = method, object = node, args = args, position = self.position }
 			elseif token.value == "(" then
 				node = self:parse_function_call(node)
@@ -377,10 +375,10 @@ end
 function Parser:should_apply_operator(precedence, token)
 	if token.type == Tokenizer.TOKEN_TYPES.OPERATOR and PRECEDENCE[token.value] then
 		if self:is_unary_operator(token) then
-			-- Unary operators should have higher precedence than the current precedence level to apply
+			
 			return PRECEDENCE[token.value] > precedence
 		else
-			-- Binary operators should have precedence greater than or equal to the current precedence level
+			
 			return PRECEDENCE[token.value] > precedence
 		end
 	else
@@ -394,11 +392,11 @@ function Parser:parse_expression(precedence)
 
 	while true do
 		local token = self:current_token()
-		if token == nil then -- End of tokens
+		if token == nil then 
 			break
 		end
 
-		-- Check if the current token is an operator with higher precedence
+		
 		if token.type == Tokenizer.TOKEN_TYPES.OPERATOR and self:should_apply_operator(precedence, token) then
 			self:advance()
 			local right = self:parse_expression(PRECEDENCE[token.value])
@@ -436,9 +434,9 @@ function Parser:parse_expression_list()
 			break
 		end
 		if next_token.type == Tokenizer.TOKEN_TYPES.SEPARATOR and next_token.value == "," then
-			self:advance() -- Move past the comma
+			self:advance() 
 		else
-			break -- End of the list
+			break 
 		end
 	end
 	return expressions
@@ -458,7 +456,7 @@ function Parser:parse_assignment(is_local)
 	local expressions = self:parse_expression_list()
 	local node =
 		{ type = "assignment", left = exprs, expressions = expressions, is_local = is_local, position = self.position }
-	-- check if the next token is an assignment operator =
+	
 	return node
 end
 
@@ -477,7 +475,7 @@ function Parser:parse_function(is_local)
 	if self:current_token().type == Tokenizer.TOKEN_TYPES.SEPARATOR and self:current_token().value == "(" then
 		self:advance()
 		args = self:parse_expression_list()
-		self:advance() -- Move past the closing ')'
+		self:advance() 
 	end
 
 	local body = self:parse_block()
@@ -522,7 +520,7 @@ function Parser:parse_control_structure(
 	local current_token = self:current_token()
 
 	if current_token and finish_token then
-		-- Added additional debugging here
+		
 		if current_token.type ~= Tokenizer.TOKEN_TYPES.KEYWORD or current_token.value ~= finish_token then
 			error(
 				"Expected '" .. finish_token .. "' to close '" .. start_token .. "' block at position " .. self.position
@@ -628,11 +626,11 @@ function Parser:parse_repeat_until()
 end
 
 function Parser:parse_for_loop()
-	-- This function will handle the initialization part of the for loop
+	
 	local parse_init = function(parser)
 		local loop_info = {}
 
-		--peek forward until we find in or do
+		
 		local in_present = false
 		local i = 1
 		while true do
@@ -645,27 +643,27 @@ function Parser:parse_for_loop()
 			end
 			i = i + 1
 		end
-		-- Check if it is a generic for loop
+		
 		if in_present then
 			local expressions = parser:parse_expression_list()
-			-- Generic for loop
-			parser:advance() -- Consume 'in'
+			
+			parser:advance() 
 			loop_info.type = "generic"
 			loop_info.left = expressions
-			loop_info.iterator = parser:parse_expression_list() -- Parsing the iterator expression
+			loop_info.iterator = parser:parse_expression_list() 
 		else
-			-- Numeric for loop; expecting: i = start, stop[, step]
-			local assignment = parser:parse_assignment(true) -- Parse the assignment
+			
+			local assignment = parser:parse_assignment(true) 
 			local start_expr = assignment.expressions[1]
 			local stop_expr = assignment.expressions[2]
-			local step_expr = nil -- Initialize step_expr as nil to handle optional nature
+			local step_expr = nil 
 
 			if assignment.type ~= "assignment" then
 				error("Expected assignment in numeric for loop")
 			end
 
 			if #assignment.expressions > 2 then
-				step_expr = assignment.expressions[3] -- Assign step_expr only if a third expression exists
+				step_expr = assignment.expressions[3] 
 			end
 
 			loop_info.type = "numeric"
@@ -678,15 +676,15 @@ function Parser:parse_for_loop()
 		return loop_info
 	end
 
-	-- Use parse_control_structure to manage the structure
+	
 	local for_loop = self:parse_control_structure(
-		"for", -- Start keyword
-		parse_init, -- Initializer function
-		"do", -- Middle keyword
+		"for", 
+		parse_init, 
+		"do", 
 		function(parser)
-			return parser:parse_block() -- Parse the body of the loop
+			return parser:parse_block() 
 		end,
-		"end" -- End keyword
+		"end" 
 	)
 
 	return for_loop
@@ -782,11 +780,11 @@ function Parser:parse_return()
 end
 
 function Parser:parse_break()
-	-- First, advance past the 'break' keyword
+	
 	self:advance()
 
-	-- There are no expressions or additional tokens to consume in a 'break' statement,
-	-- so we can directly return the node representing the break.
+	
+	
 	return { type = "break", position = self.position }
 end
 
@@ -817,7 +815,7 @@ function Parser:parse_statement(is_local)
 			return self:parse_statement(true)
 		end
 	elseif token.type == Tokenizer.TOKEN_TYPES.IDENTIFIER then
-		-- Possible variable assignment or function call
+		
 		local next_token = self:peek()
 		if not next_token then
 			error("Unexpected end of input after identifier at position " .. self.position)
@@ -826,7 +824,7 @@ function Parser:parse_statement(is_local)
 			return self:parse_assignment(is_local)
 		elseif next_token and next_token.type == Tokenizer.TOKEN_TYPES.SEPARATOR then
 			if next_token.value ~= "{" and next_token.value ~= "(" then
-				-- It's an assignment statement
+				
 				return self:parse_assignment(is_local)
 			else
 				return self:parse_primary_expression()
